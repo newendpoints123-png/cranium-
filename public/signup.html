@@ -1,9 +1,9 @@
-<!-- cranium/public/login.html -->
+<!-- cranium/public/signup.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Cranium - Login</title>
+  <title>Cranium - Sign up</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <style>
     :root {
@@ -102,20 +102,23 @@
   </style>
 </head>
 <body>
-  <form id="loginForm" class="card">
-    <!-- animated logo -->
+  <form id="signupForm" class="card">
     <img src="./media/cranium.svg" alt="Cranium" class="logo" />
 
-    <h1>Welcome back</h1>
-    <p class="subtitle">Log in to your Cranium account</p>
+    <h1>Create account</h1>
+    <p class="subtitle">Join the Cranium deployment platform</p>
 
-    <label for="email">Email</label>
-    <input id="email" type="email" required autocomplete="email"/>
-    <span class="hint" id="emailHint"></span>
+    <label for="username">Username</label>
+    <input id="username" type="text" minlength="3" required autocomplete="username"/>
+    <span class="hint" id="userHint">At least 3 characters</span>
+
+    <label for="gmail">Gmail</label>
+    <input id="gmail" type="email" required autocomplete="email"/>
+    <span class="hint" id="gmailHint"></span>
 
     <label for="password">Password</label>
     <div style="position:relative">
-      <input id="password" type="password" required minlength="6"/>
+      <input id="password" type="password" minlength="6" required autocomplete="new-password"/>
       <button type="button" id="togglePw"
         style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem">
         👁
@@ -123,61 +126,88 @@
     </div>
     <span class="hint" id="pwHint">At least 6 characters</span>
 
+    <label for="confirm">Confirm Password</label>
+    <input id="confirm" type="password" minlength="6" required autocomplete="new-password"/>
+    <span class="hint" id="confirmHint">Re-type your password</span>
+
     <button class="btn" id="submitBtn" type="submit">
-      <span id="btnText">Sign in</span>
+      <span id="btnText">Create account</span>
     </button>
 
     <div id="error" class="error d-none"></div>
     <p style="text-align:center;font-size:.8rem;margin-top:1rem">
-      No account? <a href="signup.html" style="color:#c4b5fd">Sign up</a>
+      Already have an account? <a href="login.html" style="color:#c4b5fd">Log in</a>
     </p>
   </form>
 
 <script>
-const form   = document.getElementById('loginForm');
-const email  = document.getElementById('email');
+const form   = document.getElementById('signupForm');
+const user   = document.getElementById('username');
+const gmail  = document.getElementById('gmail');
 const pw     = document.getElementById('password');
-const emailHint = document.getElementById('emailHint');
-const pwHint = document.getElementById('pwHint');
-const submitBtn = document.getElementById('submitBtn');
-const btnText = document.getElementById('btnText');
-const error = document.getElementById('error');
+const confirm= document.getElementById('confirm');
+const userHint=document.getElementById('userHint');
+const gmailHint=document.getElementById('gmailHint');
+const pwHint=document.getElementById('pwHint');
+const confirmHint=document.getElementById('confirmHint');
+const submitBtn=document.getElementById('submitBtn');
+const btnText=document.getElementById('btnText');
+const error=document.getElementById('error');
 
-email.addEventListener('input', () => {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  emailHint.textContent = re.test(email.value) ? '✓' : 'Valid email required';
+// real-time validation
+user.addEventListener('input', () => {
+  userHint.textContent = user.value.length >= 3 ? '✓' : 'Need 3+ characters';
 });
-password.addEventListener('input', () => {
+gmail.addEventListener('input', () => {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  gmailHint.textContent = re.test(gmail.value) ? '✓' : 'Valid Gmail address required';
+});
+pw.addEventListener('input', () => {
   pwHint.textContent = pw.value.length >= 6 ? '✓' : `${6 - pw.value.length} more chars`;
 });
+confirm.addEventListener('input', () => {
+  confirmHint.textContent = confirm.value === pw.value ? '✓' : 'Passwords do not match';
+});
 
-document.getElementById('togglePw').addEventListener('click', () => {
-  const type = pw.type === 'password' ? 'text' : 'password';
-  pw.type = type;
+// reveal/hide password
+['togglePw','toggleConfirm'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('click',()=>{
+    pw.type = pw.type === 'password' ? 'text' : 'password';
+    confirm.type = confirm.type === 'password' ? 'text' : 'password';
+  });
 });
 
 form.addEventListener('submit', async e => {
   e.preventDefault();
+  if (pw.value !== confirm.value) {
+    error.textContent = 'Passwords do not match';
+    error.classList.remove('d-none');
+    return;
+  }
   error.classList.add('d-none');
   submitBtn.disabled = true;
-  btnText.innerHTML = '<span class="spinner"></span>Signing in…';
+  btnText.innerHTML = '<span class="spinner"></span>Creating…';
 
-  const payload = { email: email.value.trim(), password: pw.value.trim() };
+  const payload = {
+    username: user.value.trim(),
+    gmail:    gmail.value.trim(),
+    password: pw.value.trim()
+  };
   try {
-    const res = await fetch('/api/login', {
+    const res = await fetch('/api/signup', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
+    if (!res.ok) throw new Error(data.error || 'Signup failed');
     localStorage.setItem('token', data.token);
     location.href = 'dashboard.html';
   } catch (err) {
     error.textContent = err.message;
     error.classList.remove('d-none');
     submitBtn.disabled = false;
-    btnText.textContent = 'Sign in';
+    btnText.textContent = 'Create account';
   }
 });
 </script>
