@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Cranium - Files</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    :root {
+      --bg: linear-gradient(-45deg,#0f0c29,#302b63,#24243e,#0f0c29);
+      --glass: rgba(255,255,255,.08);
+      --accent: #7c3aed;
+    }
+    @font-face {
+      font-family: 'Gagalin';
+      src: url('./media/gagalin.otf') format('opentype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    *{box-sizing:border-box;font-family:"Gagalin",system-ui,sans-serif}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:var(--bg);
+      background-size:400% 400%;
+      animation:glow 15s ease infinite;
+      color:#fff;
+    }
+    @keyframes glow{
+      0%{background-position:0% 50%}
+      50%{background-position:100% 50%}
+      100%{background-position:0% 50%}
+    }
+    .header{
+      padding:1rem 2rem;
+      background:var(--glass);
+      backdrop-filter:blur(12px);
+      border-bottom:1px solid rgba(255,255,255,.1);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .logo{width:40px;height:40px}
+    .user-info{display:flex;align-items:center;gap:1rem}
+    .container{
+      max-width:1200px;
+      margin:0 auto;
+      padding:2rem;
+      padding-bottom: 6rem;
+    }
+    .footer{
+      position:fixed;
+      bottom:0;
+      left:0;
+      width:100%;
+      background:var(--glass);
+      backdrop-filter:blur(12px);
+      border-top:1px solid rgba(255,255,255,.1);
+      display:flex;
+      justify-content:center;
+      padding:1rem;
+      gap:1rem
+    }
+    .footer-btn{
+      padding:.5rem 1.5rem;
+      background:rgba(255,255,255,.1);
+      border:none;
+      border-radius:8px;
+      color:#fff;
+      cursor:pointer;
+      transition:background .25s;
+      font-family:"Gagalin",system-ui,sans-serif
+    }
+    .footer-btn:hover{
+      background:rgba(255,255,255,.2)
+    }
+    .upload-container {
+      margin-top: 2rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    #file-input {
+      font-family: "Gagalin", system-ui, sans-serif;
+    }
+
+    #upload-btn {
+      padding: .5rem 1.5rem;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      transition: background .25s;
+      font-family: "Gagalin", system-ui, sans-serif;
+    }
+
+    #upload-btn:hover {
+      background: #6d28d9;
+    }
+
+    .file-list-container {
+      margin-top: 2rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .file-item {
+      background: var(--glass);
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+      position: relative;
+    }
+
+    .file-options {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      cursor: pointer;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: 1.5rem;
+      right: 0;
+      background: var(--glass);
+      border-radius: 8px;
+      padding: 0.5rem;
+      display: none;
+      z-index: 1;
+    }
+
+    .dropdown-menu button {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem;
+    }
+
+    .dropdown-menu button:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .breadcrumb {
+      margin-bottom: 1rem;
+    }
+
+    .breadcrumb a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .file-item.directory {
+      cursor: pointer;
+      background: rgba(124, 58, 237, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="./media/cranium.svg" alt="Cranium" class="logo" />
+    <div class="user-info">
+      <span id="username">Loading...</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>File Manager</h1>
+    <p>Manage your project files here.</p>
+    <div id="breadcrumb"></div>
+    <div class="upload-container">
+      <input type="file" id="file-input">
+      <button id="upload-btn">Upload</button>
+    </div>
+    <div id="file-list" class="file-list-container"></div>
+  </div>
+
+  <div class="footer">
+    <button class="footer-btn" onclick="window.location.href='console.html'">Console</button>
+    <button class="footer-btn" onclick="window.location.href='file.html'">Files</button>
+  </div>
+
+<script>
+let currentPath = '';
+
+async function checkAuth() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/verify', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!res.ok) {
+      throw new Error('Invalid token');
+    }
+    
+    const data = await res.json();
+    document.getElementById('username').textContent = `Hello, ${data.user.username}!`;
+    handleHashChange(); // Initial load based on hash
+  } catch (error) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'login.html';
+  }
+}
+
+const fileInput = document.getElementById('file-input');
+const uploadBtn = document.getElementById('upload-btn');
+const fileListContainer = document.getElementById('file-list');
+const breadcrumbContainer = document.getElementById('breadcrumb');
+
+function handleHashChange() {
+  const path = window.location.hash.substring(1) || '';
+  fetchFiles(path);
+}
+
+async function fetchFiles(path = '') {
+  currentPath = path;
+  try {
+    const res = await fetch('/api/files', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ currentPath: path })
+    });
+
+    if (!res.ok) {
+      throw new Error('Failed to fetch files');
+    }
+
+    const files = await res.json();
+    displayFiles(files);
+    updateBreadcrumb();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function displayFiles(files) {
+  fileListContainer.innerHTML = '';
+  if (files.length === 0) {
+    fileListContainer.innerHTML = '<p>No files uploaded yet.</p>';
+    return;
+  }
+
+  files.forEach(file => {
+    const fileItem = document.createElement('div');
+    fileItem.className = 'file-item';
+    if (file.isDirectory) {
+      fileItem.classList.add('directory');
+      fileItem.addEventListener('click', () => {
+        window.location.hash = currentPath + file.name + '/';
+      });
+    }
+
+    const fileName = document.createElement('span');
+    fileName.textContent = file.name;
+    fileItem.appendChild(fileName);
+
+    const optionsButton = document.createElement('div');
+    optionsButton.className = 'file-options';
+    optionsButton.innerHTML = '&#x22EE;'; // Vertical ellipsis
+    fileItem.appendChild(optionsButton);
+
+    const dropdownMenu = document.createElement('div');
+    dropdownMenu.className = 'dropdown-menu';
+    optionsButton.appendChild(dropdownMenu);
+
+    if (file.name.endsWith('.zip')) {
+      const unzipButton = document.createElement('button');
+      unzipButton.textContent = 'Unzip';
+      unzipButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+          const res = await fetch('/api/unzip', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ filename: currentPath + file.name })
+          });
+
+          if (!res.ok) {
+            throw new Error('Unzip failed');
+          }
+
+          alert('File unzipped successfully!');
+          fetchFiles(currentPath);
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+      dropdownMenu.appendChild(unzipButton);
+    }
+
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Delete';
+    deleteButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Are you sure you want to delete ${file.name}?`)) return;
+
+      try {
+        const res = await fetch('/api/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ pathToDelete: currentPath + file.name })
+        });
+
+        if (!res.ok) {
+          throw new Error('Delete failed');
+        }
+
+        alert('Item deleted successfully!');
+        fetchFiles(currentPath);
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+    dropdownMenu.appendChild(deleteButton);
+
+    optionsButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const allDropdowns = document.querySelectorAll('.dropdown-menu');
+      allDropdowns.forEach(d => {
+        if (d !== dropdownMenu) d.style.display = 'none';
+      });
+      dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
+    });
+
+    fileListContainer.appendChild(fileItem);
+  });
+}
+
+function updateBreadcrumb() {
+  breadcrumbContainer.innerHTML = '';
+  const parts = currentPath.split('/').filter(p => p);
+  const rootLink = document.createElement('a');
+  rootLink.href = '#';
+  rootLink.textContent = 'Root';
+  breadcrumbContainer.appendChild(rootLink);
+
+  let path = '';
+  parts.forEach(part => {
+    path += part + '/';
+    const separator = document.createElement('span');
+    separator.textContent = ' / ';
+    breadcrumbContainer.appendChild(separator);
+
+    const partLink = document.createElement('a');
+    partLink.href = '#' + path;
+    partLink.textContent = part;
+    breadcrumbContainer.appendChild(partLink);
+  });
+}
+
+uploadBtn.addEventListener('click', async () => {
+  const file = fileInput.files[0];
+  if (!file) {
+    alert('Please select a file to upload.');
+    return;
+  }
+
+  const formData = new FormData();
+  // Pass the current path in the form data to upload to the correct directory
+  formData.append('file', file);
+  formData.append('path', currentPath);
+
+
+  try {
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: formData
+    });
+
+    if (!res.ok) {
+      throw new Error('Upload failed');
+    }
+
+    alert('File uploaded successfully!');
+    fetchFiles(currentPath);
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+window.addEventListener('hashchange', handleHashChange);
+document.addEventListener('click', () => {
+  const allDropdowns = document.querySelectorAll('.dropdown-menu');
+  allDropdowns.forEach(d => d.style.display = 'none');
+});
+
+checkAuth();
+</script>
+</body>
+</html>

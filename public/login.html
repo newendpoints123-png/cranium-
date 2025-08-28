@@ -251,7 +251,7 @@ form.addEventListener('submit', async e => {
     localStorage.setItem('user', JSON.stringify(data.user));
     
     setTimeout(() => {
-      window.location.href = 'dashboard.html';
+      window.location.href = 'console.html';
     }, 1500);
   } catch (err) {
     showError(err.message || 'Login failed. Please try again.');
@@ -265,7 +265,7 @@ if (localStorage.getItem('token')) {
     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
   }).then(res => {
     if (res.ok) {
-      window.location.href = 'dashboard.html';
+      window.location.href = 'console.html';
     }
   }).catch(() => {
     localStorage.removeItem('token');

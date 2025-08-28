@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Cranium - Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    :root {
+      --bg: linear-gradient(-45deg,#0f0c29,#302b63,#24243e,#0f0c29);
+      --glass: rgba(255,255,255,.08);
+      --accent: #7c3aed;
+    }
+    @font-face {
+      font-family: 'Gagalin';
+      src: url('./media/gagalin.otf') format('opentype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    *{box-sizing:border-box;font-family:"Gagalin",system-ui,sans-serif}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:var(--bg);
+      background-size:400% 400%;
+      animation:glow 15s ease infinite;
+      color:#fff;
+    }
+    @keyframes glow{
+      0%{background-position:0% 50%}
+      50%{background-position:100% 50%}
+      100%{background-position:0% 50%}
+    }
+    .header{
+      padding:1rem 2rem;
+      background:var(--glass);
+      backdrop-filter:blur(12px);
+      border-bottom:1px solid rgba(255,255,255,.1);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .logo{width:40px;height:40px}
+    .user-info{display:flex;align-items:center;gap:1rem}
+    .logout-btn{
+      padding:.5rem 1rem;
+      background:rgba(255,255,255,.1);
+      border:none;
+      border-radius:8px;
+      color:#fff;
+      cursor:pointer;
+      transition:background .25s;
+    }
+    .logout-btn:hover{background:rgba(255,255,255,.2)}
+    .container{
+      max-width:1200px;
+      margin:0 auto;
+      padding:2rem;
+      padding-bottom: 6rem;
+    }
+    .welcome{
+      text-align:center;
+      margin-bottom:3rem;
+    }
+    .welcome h1{font-size:2.5rem;margin-bottom:.5rem}
+    .welcome p{opacity:.7;font-size:1.1rem}
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+      gap:1.5rem;
+      margin-bottom:3rem;
+    }
+    .stat-card{
+      padding:1.5rem;
+      background:var(--glass);
+      backdrop-filter:blur(12px);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:16px;
+      text-align:center;
+    }
+    .stat-number{font-size:2rem;font-weight:700;color:var(--accent)}
+    .stat-label{opacity:.7;margin-top:.5rem}
+    .console-container{
+      background:#131A20;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.1);
+      padding:1.5rem;
+      font-family:monospace
+    }
+    .console-screen{
+      height:400px;
+      overflow-y:scroll;
+      color:#fff;
+      margin-bottom:1rem
+    }
+    .console-input{
+      display:flex;
+      align-items:center
+    }
+    .console-input span{
+      margin-right:.5rem;
+      color:var(--accent)
+    }
+    .console-input input{
+      background:transparent;
+      border:none;
+      color:#fff;
+      width:100%;
+      outline:none;
+      font-family:monospace
+    }
+    .footer{
+      position:fixed;
+      bottom:0;
+      left:0;
+      width:100%;
+      background:var(--glass);
+      backdrop-filter:blur(12px);
+      border-top:1px solid rgba(255,255,255,.1);
+      display:flex;
+      justify-content:center;
+      padding:1rem;
+      gap:1rem
+    }
+    .footer-btn{
+      padding:.5rem 1.5rem;
+      background:rgba(255,255,255,.1);
+      border:none;
+      border-radius:8px;
+      color:#fff;
+      cursor:pointer;
+      transition:background .25s;
+      font-family:"Gagalin",system-ui,sans-serif
+    }
+    .footer-btn:hover{
+      background:rgba(255,255,255,.2)
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="./media/cranium.svg" alt="Cranium" class="logo" />
+    <div class="user-info">
+      <span id="username">Loading...</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="console-container">
+      <div class="console-screen">
+        <pre id="console-output">Welcome to the Cranium console!</pre>
+      </div>
+      <div class="console-input">
+        <span>></span>
+        <input type="text" id="console-input" placeholder="Enter command...">
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="footer-btn" onclick="window.location.href='console.html'">Console</button>
+    <button class="footer-btn" onclick="window.location.href='file.html'">Files</button>
+  </div>
+
+<script>
+async function checkAuth() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/verify', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!res.ok) {
+      throw new Error('Invalid token');
+    }
+    
+    const data = await res.json();
+    document.getElementById('username').textContent = `Hello, ${data.user.username}!`;
+  } catch (error) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'login.html';
+  }
+}
+
+checkAuth();
+</script>
+</body>
+</html>

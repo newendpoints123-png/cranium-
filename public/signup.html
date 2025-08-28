@@ -332,12 +332,10 @@ form.addEventListener('submit', async e => {
       throw new Error(data.error || 'Signup failed');
     }
     
-    showSuccess('Account created successfully! Redirecting...');
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
+    showSuccess('Account created successfully! Redirecting to login...');
     
     setTimeout(() => {
-      window.location.href = 'dashboard.html';
+      window.location.href = 'login.html';
     }, 1500);
   } catch (err) {
     showError(err.message || 'Signup failed. Please try again.');
@@ -351,7 +349,7 @@ if (localStorage.getItem('token')) {
     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
   }).then(res => {
     if (res.ok) {
-      window.location.href = 'dashboard.html';
+      window.location.href = 'console.html';
     }
   }).catch(() => {
     localStorage.removeItem('token');
