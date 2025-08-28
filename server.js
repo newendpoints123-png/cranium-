@@ -50,7 +50,7 @@ app.post('/api/signup', async (req, res) => {
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
     const users = await readUsers();
@@ -94,22 +94,25 @@ app.post('/api/signup', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { emailOrUsername, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!emailOrUsername || !password) {
+      return res.status(400).json({ error: 'Email/Username and password are required' });
     }
 
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
     const users = await readUsers();
-    const user = users.find(u => u.gmail === email);
+    const user = users.find(u => u.gmail === emailOrUsername || u.username === emailOrUsername);
     
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     user.lastLogin = new Date().toISOString();

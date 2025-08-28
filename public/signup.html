@@ -145,13 +145,13 @@
 
     <label for="password">Password</label>
     <div style="position:relative">
-      <input id="password" type="password" minlength="6" required autocomplete="new-password"/>
+      <input id="password" type="password" minlength="8" required autocomplete="new-password"/>
       <button type="button" id="togglePw"
         style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem">
         👁
       </button>
     </div>
-    <span class="hint" id="pwHint">At least 6 characters</span>
+    <span class="hint" id="pwHint">At least 8 characters</span>
 
     <div class="strength-meter">
       <div class="strength-fill" id="strengthFill"></div>
@@ -159,7 +159,7 @@
 
     <label for="confirm">Confirm Password</label>
     <div style="position:relative">
-      <input id="confirm" type="password" minlength="6" required autocomplete="new-password"/>
+      <input id="confirm" type="password" minlength="8" required autocomplete="new-password"/>
       <button type="button" id="toggleConfirm"
         style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem">
         👁
@@ -213,7 +213,7 @@ function hideMessages() {
 
 function checkPasswordStrength(password) {
   let strength = 0;
-  if (password.length >= 6) strength += 25;
+  if (password.length >= 8) strength += 25;
   if (password.length >= 8) strength += 25;
   if (/[A-Z]/.test(password)) strength += 25;
   if (/[0-9]/.test(password)) strength += 25;
@@ -252,8 +252,8 @@ pw.addEventListener('input', () => {
   const strength = checkPasswordStrength(pw.value);
   updateStrengthMeter(strength);
   
-  const isValid = pw.value.length >= 6;
-  pwHint.textContent = pw.value ? (isValid ? '✓ Strong password' : `Need ${6 - pw.value.length} more chars`) : 'At least 6 characters';
+  const isValid = pw.value.length >= 8;
+  pwHint.textContent = pw.value ? (isValid ? '✓ Strong password' : `Need ${8 - pw.value.length} more chars`) : 'At least 8 characters';
   pwHint.style.color = isValid ? '#86efac' : '#fca5a5';
   
   if (confirm.value) {
@@ -302,8 +302,8 @@ form.addEventListener('submit', async e => {
     return;
   }
   
-  if (pw.value.length < 6) {
-    showError('Password must be at least 6 characters');
+  if (pw.value.length < 8) {
+    showError('Password must be at least 8 characters');
     return;
   }
   

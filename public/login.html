@@ -123,9 +123,9 @@
     <h1>Welcome back</h1>
     <p class="subtitle">Log in to your Cranium account</p>
 
-    <label for="email">Email</label>
-    <input id="email" type="email" required autocomplete="email"/>
-    <span class="hint" id="emailHint"></span>
+    <label for="emailOrUsername">Email or Username</label>
+    <input id="emailOrUsername" type="text" required autocomplete="username"/>
+    <span class="hint" id="emailOrUsernameHint">Enter your email or username</span>
 
     <label for="password">Password</label>
     <div style="position:relative">
@@ -135,7 +135,7 @@
         👁
       </button>
     </div>
-    <span class="hint" id="pwHint">At least 6 characters</span>
+    <span class="hint" id="pwHint">At least 8 characters</span>
 
     <button class="btn" id="submitBtn" type="submit">
       <span id="btnText">Sign in</span>
@@ -150,9 +150,9 @@
 
 <script>
 const form   = document.getElementById('loginForm');
-const email  = document.getElementById('email');
+const emailOrUsername = document.getElementById('emailOrUsername');
 const pw     = document.getElementById('password');
-const emailHint = document.getElementById('emailHint');
+const emailOrUsernameHint = document.getElementById('emailOrUsernameHint');
 const pwHint = document.getElementById('pwHint');
 const submitBtn = document.getElementById('submitBtn');
 const btnText = document.getElementById('btnText');
@@ -176,17 +176,28 @@ function hideMessages() {
   success.classList.add('d-none');
 }
 
-email.addEventListener('input', () => {
+emailOrUsername.addEventListener('input', () => {
   hideMessages();
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  emailHint.textContent = email.value ? (re.test(email.value) ? '✓ Valid' : 'Invalid email format') : 'Enter your email';
-  emailHint.style.color = re.test(email.value) ? '#86efac' : '#fca5a5';
+  const value = emailOrUsername.value.trim();
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  const isUsername = value.length >= 3;
+  
+  if (!value) {
+    emailOrUsernameHint.textContent = 'Enter your email or username';
+    emailOrUsernameHint.style.color = '#fca5a5';
+  } else if (isEmail || isUsername) {
+    emailOrUsernameHint.textContent = isEmail ? '✓ Valid email' : '✓ Valid username';
+    emailOrUsernameHint.style.color = '#86efac';
+  } else {
+    emailOrUsernameHint.textContent = 'Enter valid email or username (3+ chars)';
+    emailOrUsernameHint.style.color = '#fca5a5';
+  }
 });
 
 pw.addEventListener('input', () => {
   hideMessages();
-  const isValid = pw.value.length >= 6;
-  pwHint.textContent = pw.value ? (isValid ? '✓ Strong enough' : `Need ${6 - pw.value.length} more chars`) : 'At least 6 characters';
+  const isValid = pw.value.length >= 8;
+  pwHint.textContent = pw.value ? (isValid ? '✓ Strong enough' : `Need ${8 - pw.value.length} more chars`) : 'At least 8 characters';
   pwHint.style.color = isValid ? '#86efac' : '#fca5a5';
 });
 
@@ -200,21 +211,29 @@ form.addEventListener('submit', async e => {
   e.preventDefault();
   hideMessages();
   
-  if (!email.value.trim() || !pw.value.trim()) {
+  if (!emailOrUsername.value.trim() || !pw.value.trim()) {
     showError('Please fill in all fields');
     return;
   }
   
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email.value)) {
-    showError('Please enter a valid email address');
+  const value = emailOrUsername.value.trim();
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  const isUsername = value.length >= 3;
+  
+  if (!isEmail && !isUsername) {
+    showError('Please enter a valid email or username (3+ characters)');
+    return;
+  }
+  
+  if (pw.value.length < 8) {
+    showError('Password must be at least 8 characters');
     return;
   }
   
   submitBtn.disabled = true;
   btnText.innerHTML = '<span class="spinner"></span>Signing in…';
 
-  const payload = { email: email.value.trim(), password: pw.value.trim() };
+  const payload = { emailOrUsername: value, password: pw.value.trim() };
   try {
     const res = await fetch('/api/login', {
       method: 'POST',
