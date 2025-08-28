@@ -1,1 +1,62 @@
+<!-- cranium/public/cranium.svg -->
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- glowing gradient -->
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#c4b5fd"/>
+    </linearGradient>
 
+    <!-- filter for soft glow -->
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- rotating cube outline -->
+  <g id="cube">
+    <path d="M50 80 L100 60 L150 80 L150 120 L100 140 L50 120 Z"
+          fill="none" stroke="url(#glow)" stroke-width="4"
+          stroke-linejoin="round">
+      <animateTransform attributeName="transform"
+                        type="rotate"
+                        values="0 100 100;360 100 100"
+                        dur="12s"
+                        repeatCount="indefinite"/>
+    </path>
+    <path d="M50 80 L100 100 L150 80 M100 100 L100 140"
+          stroke="url(#glow)" stroke-width="2" stroke-linecap="round">
+      <animateTransform attributeName="transform"
+                        type="rotate"
+                        values="0 100 100;360 100 100"
+                        dur="12s"
+                        repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- brain / intelligence icon -->
+  <g id="brain" stroke="url(#glow)" stroke-width="2.5" stroke-linecap="round" fill="none">
+    <path d="M75 95 C65 90 65 110 75 115"/>
+    <path d="M125 95 C135 90 135 110 125 115"/>
+    <path d="M85 100 C90 98 90 107 85 105"/>
+    <path d="M115 100 C110 98 110 107 115 105"/>
+    <!-- pulsing center -->
+    <circle cx="100" cy="105" r="2" fill="url(#glow)">
+      <animate attributeName="r" values="2;5;2" dur="2s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- “container start” play-button overlay (appears on hover) -->
+  <g id="play" opacity="0">
+    <circle cx="100" cy="100" r="20" fill="#7c3aed" filter="url(#softGlow)"/>
+    <polygon points="95,92 95,108 108,100" fill="#fff"/>
+    <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="mouseover" fill="freeze"/>
+  </g>
+
+  <!-- hover target (transparent rect) -->
+  <rect width="100%" height="100%" fill="transparent" pointer-events="all"/>
+</svg>
