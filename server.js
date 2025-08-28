@@ -1,19 +1,30 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs').promises;
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
+const multer = require('multer');
+const jwt = require('jsonwebtoken');
+const extract = require('extract-zip');
 const app = express();
+
 const PORT = process.env.PORT || 7860;
 
 const DB_PATH = path.join(__dirname, 'database', 'users.json');
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR);
+}
+
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 async function readUsers() {
   try {
-    const data = await fs.readFile(DB_PATH, 'utf8');
+    const data = await fs.promises.readFile(DB_PATH, 'utf8');
     return JSON.parse(data);
   } catch (error) {
     return [];
@@ -21,17 +32,64 @@ async function readUsers() {
 }
 
 async function writeUsers(users) {
-  await fs.writeFile(DB_PATH, JSON.stringify(users, null, 2));
+  await fs.promises.writeFile(DB_PATH, JSON.stringify(users, null, 2));
 }
 
 function generateToken(userId) {
-  return Buffer.from(`${userId}:${Date.now()}`).toString('base64');
+  return jwt.sign({ id: userId }, 'your-secret-key', { expiresIn: '1h' });
 }
 
 function validateEmail(email) {
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return re.test(email);
 }
+
+// Middleware to authenticate and get user
+const authenticate = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, 'your-secret-key');
+    const users = await readUsers();
+    const user = users.find(u => u.id === decoded.id);
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// Multer storage configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const userDir = path.join(UPLOADS_DIR, req.user.username);
+    const destinationPath = req.body.path ? path.join(userDir, req.body.path) : userDir;
+
+    // Prevent directory traversal
+    if (!destinationPath.startsWith(userDir)) {
+      return cb(new Error('Forbidden'));
+    }
+
+    if (!fs.existsSync(destinationPath)) {
+      fs.mkdirSync(destinationPath, { recursive: true });
+    }
+    cb(null, destinationPath);
+  },
+  filename: (req, file, cb) => {
+    cb(null, file.originalname);
+  }
+});
+
+const upload = multer({ storage });
+
 
 app.post('/api/signup', async (req, res) => {
   try {
@@ -135,33 +193,102 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-app.get('/api/verify', async (req, res) => {
+app.get('/api/verify', authenticate, async (req, res) => {
+  res.json({
+    success: true,
+    user: {
+      id: req.user.id,
+      username: req.user.username,
+      gmail: req.user.gmail
+    }
+  });
+});
+
+app.post('/api/upload', authenticate, upload.single('file'), (req, res) => {
+  res.json({ success: true, message: 'File uploaded successfully' });
+});
+
+app.post('/api/files', authenticate, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+    const { currentPath } = req.body;
+    const userDir = path.join(UPLOADS_DIR, req.user.username);
+    const requestedPath = currentPath ? path.join(userDir, currentPath) : userDir;
+
+    // Prevent directory traversal
+    if (!requestedPath.startsWith(userDir)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const decoded = Buffer.from(token, 'base64').toString();
-    const [userId] = decoded.split(':');
-    
-    const users = await readUsers();
-    const user = users.find(u => u.id === userId);
-    
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid token' });
+    if (!fs.existsSync(requestedPath)) {
+      return res.json([]);
     }
 
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        gmail: user.gmail
-      }
-    });
+    const files = await fs.promises.readdir(requestedPath, { withFileTypes: true });
+    const fileDetails = files.map(file => ({
+      name: file.name,
+      isDirectory: file.isDirectory()
+    }));
+
+    res.json(fileDetails);
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    console.error('File list error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/unzip', authenticate, async (req, res) => {
+  try {
+    const { filename } = req.body;
+    if (!filename) {
+      return res.status(400).json({ error: 'Filename is required' });
+    }
+
+    const userDir = path.join(UPLOADS_DIR, req.user.username);
+    const filePath = path.join(userDir, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    await extract(filePath, { dir: userDir });
+
+    res.json({ success: true, message: 'File unzipped successfully' });
+  } catch (error) {
+    console.error('Unzip error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/delete', authenticate, async (req, res) => {
+  try {
+    const { pathToDelete } = req.body;
+    if (!pathToDelete) {
+      return res.status(400).json({ error: 'Path is required' });
+    }
+
+    const userDir = path.join(UPLOADS_DIR, req.user.username);
+    const itemPath = path.join(userDir, pathToDelete);
+
+    // Prevent directory traversal
+    if (!itemPath.startsWith(userDir)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    if (!fs.existsSync(itemPath)) {
+      return res.status(404).json({ error: 'File or folder not found' });
+    }
+
+    const stats = await fs.promises.stat(itemPath);
+    if (stats.isDirectory()) {
+      await fs.promises.rm(itemPath, { recursive: true, force: true });
+    } else {
+      await fs.promises.unlink(itemPath);
+    }
+
+    res.json({ success: true, message: 'Item deleted successfully' });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
