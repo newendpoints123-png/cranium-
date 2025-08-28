@@ -99,11 +99,19 @@
       vertical-align:middle;
     }
     @keyframes spin{to{transform:rotate(360deg)}}
+    .success{
+      margin-top:.75rem;
+      font-size:.8rem;
+      color:#86efac;
+      text-align:center;
+      animation:fadeIn .5s;
+    }
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .d-none{display:none!important}
   </style>
 </head>
 <body>
   <form id="loginForm" class="card">
-    <!-- animated logo -->
     <img src="./media/cranium.svg" alt="Cranium" class="logo" />
 
     <h1>Welcome back</h1>
@@ -128,6 +136,7 @@
     </button>
 
     <div id="error" class="error d-none"></div>
+    <div id="success" class="success d-none"></div>
     <p style="text-align:center;font-size:.8rem;margin-top:1rem">
       No account? <a href="signup.html" style="color:#c4b5fd">Sign up</a>
     </p>
@@ -142,44 +151,102 @@ const pwHint = document.getElementById('pwHint');
 const submitBtn = document.getElementById('submitBtn');
 const btnText = document.getElementById('btnText');
 const error = document.getElementById('error');
+const success = document.getElementById('success');
+
+function showError(msg) {
+  error.textContent = msg;
+  error.classList.remove('d-none');
+  success.classList.add('d-none');
+}
+
+function showSuccess(msg) {
+  success.textContent = msg;
+  success.classList.remove('d-none');
+  error.classList.add('d-none');
+}
+
+function hideMessages() {
+  error.classList.add('d-none');
+  success.classList.add('d-none');
+}
 
 email.addEventListener('input', () => {
+  hideMessages();
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  emailHint.textContent = re.test(email.value) ? '✓' : 'Valid email required';
+  emailHint.textContent = email.value ? (re.test(email.value) ? '✓ Valid' : 'Invalid email format') : 'Enter your email';
+  emailHint.style.color = re.test(email.value) ? '#86efac' : '#fca5a5';
 });
-password.addEventListener('input', () => {
-  pwHint.textContent = pw.value.length >= 6 ? '✓' : `${6 - pw.value.length} more chars`;
+
+pw.addEventListener('input', () => {
+  hideMessages();
+  const isValid = pw.value.length >= 6;
+  pwHint.textContent = pw.value ? (isValid ? '✓ Strong enough' : `Need ${6 - pw.value.length} more chars`) : 'At least 6 characters';
+  pwHint.style.color = isValid ? '#86efac' : '#fca5a5';
 });
 
 document.getElementById('togglePw').addEventListener('click', () => {
   const type = pw.type === 'password' ? 'text' : 'password';
   pw.type = type;
+  document.getElementById('togglePw').textContent = type === 'password' ? '👁' : '🙈';
 });
 
 form.addEventListener('submit', async e => {
   e.preventDefault();
-  error.classList.add('d-none');
+  hideMessages();
+  
+  if (!email.value.trim() || !pw.value.trim()) {
+    showError('Please fill in all fields');
+    return;
+  }
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.value)) {
+    showError('Please enter a valid email address');
+    return;
+  }
+  
   submitBtn.disabled = true;
   btnText.innerHTML = '<span class="spinner"></span>Signing in…';
 
   const payload = { email: email.value.trim(), password: pw.value.trim() };
   try {
     const res = await fetch('/api/login', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
+    
+    if (!res.ok) {
+      throw new Error(data.error || 'Login failed');
+    }
+    
+    showSuccess('Login successful! Redirecting...');
     localStorage.setItem('token', data.token);
-    location.href = 'dashboard.html';
+    localStorage.setItem('user', JSON.stringify(data.user));
+    
+    setTimeout(() => {
+      window.location.href = 'dashboard.html';
+    }, 1500);
   } catch (err) {
-    error.textContent = err.message;
-    error.classList.remove('d-none');
+    showError(err.message || 'Login failed. Please try again.');
     submitBtn.disabled = false;
     btnText.textContent = 'Sign in';
   }
 });
+
+if (localStorage.getItem('token')) {
+  fetch('/api/verify', {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+  }).then(res => {
+    if (res.ok) {
+      window.location.href = 'dashboard.html';
+    }
+  }).catch(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  });
+}
 </script>
 </body>
 </html>

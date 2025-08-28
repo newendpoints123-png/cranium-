@@ -99,6 +99,27 @@
       vertical-align:middle;
     }
     @keyframes spin{to{transform:rotate(360deg)}}
+    .success{
+      margin-top:.75rem;
+      font-size:.8rem;
+      color:#86efac;
+      text-align:center;
+      animation:fadeIn .5s;
+    }
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .d-none{display:none!important}
+    .strength-meter{
+      height:4px;
+      background:#374151;
+      border-radius:2px;
+      margin-top:.5rem;
+      overflow:hidden;
+    }
+    .strength-fill{
+      height:100%;
+      transition:width .3s,background .3s;
+      border-radius:2px;
+    }
   </style>
 </head>
 <body>
@@ -126,8 +147,18 @@
     </div>
     <span class="hint" id="pwHint">At least 6 characters</span>
 
+    <div class="strength-meter">
+      <div class="strength-fill" id="strengthFill"></div>
+    </div>
+
     <label for="confirm">Confirm Password</label>
-    <input id="confirm" type="password" minlength="6" required autocomplete="new-password"/>
+    <div style="position:relative">
+      <input id="confirm" type="password" minlength="6" required autocomplete="new-password"/>
+      <button type="button" id="toggleConfirm"
+        style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem">
+        👁
+      </button>
+    </div>
     <span class="hint" id="confirmHint">Re-type your password</span>
 
     <button class="btn" id="submitBtn" type="submit">
@@ -135,6 +166,7 @@
     </button>
 
     <div id="error" class="error d-none"></div>
+    <div id="success" class="success d-none"></div>
     <p style="text-align:center;font-size:.8rem;margin-top:1rem">
       Already have an account? <a href="login.html" style="color:#c4b5fd">Log in</a>
     </p>
@@ -153,38 +185,127 @@ const confirmHint=document.getElementById('confirmHint');
 const submitBtn=document.getElementById('submitBtn');
 const btnText=document.getElementById('btnText');
 const error=document.getElementById('error');
+const success=document.getElementById('success');
+const strengthFill=document.getElementById('strengthFill');
 
-// real-time validation
+function showError(msg) {
+  error.textContent = msg;
+  error.classList.remove('d-none');
+  success.classList.add('d-none');
+}
+
+function showSuccess(msg) {
+  success.textContent = msg;
+  success.classList.remove('d-none');
+  error.classList.add('d-none');
+}
+
+function hideMessages() {
+  error.classList.add('d-none');
+  success.classList.add('d-none');
+}
+
+function checkPasswordStrength(password) {
+  let strength = 0;
+  if (password.length >= 6) strength += 25;
+  if (password.length >= 8) strength += 25;
+  if (/[A-Z]/.test(password)) strength += 25;
+  if (/[0-9]/.test(password)) strength += 25;
+  return strength;
+}
+
+function updateStrengthMeter(strength) {
+  strengthFill.style.width = strength + '%';
+  if (strength < 25) {
+    strengthFill.style.background = '#ef4444';
+  } else if (strength < 50) {
+    strengthFill.style.background = '#f59e0b';
+  } else if (strength < 75) {
+    strengthFill.style.background = '#eab308';
+  } else {
+    strengthFill.style.background = '#22c55e';
+  }
+}
+
 user.addEventListener('input', () => {
-  userHint.textContent = user.value.length >= 3 ? '✓' : 'Need 3+ characters';
-});
-gmail.addEventListener('input', () => {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  gmailHint.textContent = re.test(gmail.value) ? '✓' : 'Valid Gmail address required';
-});
-pw.addEventListener('input', () => {
-  pwHint.textContent = pw.value.length >= 6 ? '✓' : `${6 - pw.value.length} more chars`;
-});
-confirm.addEventListener('input', () => {
-  confirmHint.textContent = confirm.value === pw.value ? '✓' : 'Passwords do not match';
+  hideMessages();
+  const isValid = user.value.length >= 3;
+  userHint.textContent = user.value ? (isValid ? '✓ Good username' : `Need ${3 - user.value.length} more chars`) : 'At least 3 characters';
+  userHint.style.color = isValid ? '#86efac' : '#fca5a5';
 });
 
-// reveal/hide password
-['togglePw','toggleConfirm'].forEach(id=>{
-  document.getElementById(id)?.addEventListener('click',()=>{
-    pw.type = pw.type === 'password' ? 'text' : 'password';
-    confirm.type = confirm.type === 'password' ? 'text' : 'password';
-  });
+gmail.addEventListener('input', () => {
+  hideMessages();
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  gmailHint.textContent = gmail.value ? (re.test(gmail.value) ? '✓ Valid email' : 'Invalid email format') : 'Enter your email';
+  gmailHint.style.color = re.test(gmail.value) ? '#86efac' : '#fca5a5';
+});
+
+pw.addEventListener('input', () => {
+  hideMessages();
+  const strength = checkPasswordStrength(pw.value);
+  updateStrengthMeter(strength);
+  
+  const isValid = pw.value.length >= 6;
+  pwHint.textContent = pw.value ? (isValid ? '✓ Strong password' : `Need ${6 - pw.value.length} more chars`) : 'At least 6 characters';
+  pwHint.style.color = isValid ? '#86efac' : '#fca5a5';
+  
+  if (confirm.value) {
+    const match = confirm.value === pw.value;
+    confirmHint.textContent = match ? '✓ Passwords match' : 'Passwords do not match';
+    confirmHint.style.color = match ? '#86efac' : '#fca5a5';
+  }
+});
+
+confirm.addEventListener('input', () => {
+  hideMessages();
+  const match = confirm.value === pw.value;
+  confirmHint.textContent = confirm.value ? (match ? '✓ Passwords match' : 'Passwords do not match') : 'Re-type your password';
+  confirmHint.style.color = match ? '#86efac' : '#fca5a5';
+});
+
+document.getElementById('togglePw').addEventListener('click', () => {
+  const type = pw.type === 'password' ? 'text' : 'password';
+  pw.type = type;
+  document.getElementById('togglePw').textContent = type === 'password' ? '👁' : '🙈';
+});
+
+document.getElementById('toggleConfirm').addEventListener('click', () => {
+  const type = confirm.type === 'password' ? 'text' : 'password';
+  confirm.type = type;
+  document.getElementById('toggleConfirm').textContent = type === 'password' ? '👁' : '🙈';
 });
 
 form.addEventListener('submit', async e => {
   e.preventDefault();
-  if (pw.value !== confirm.value) {
-    error.textContent = 'Passwords do not match';
-    error.classList.remove('d-none');
+  hideMessages();
+  
+  if (!user.value.trim() || !gmail.value.trim() || !pw.value.trim() || !confirm.value.trim()) {
+    showError('Please fill in all fields');
     return;
   }
-  error.classList.add('d-none');
+  
+  if (user.value.length < 3) {
+    showError('Username must be at least 3 characters');
+    return;
+  }
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(gmail.value)) {
+    showError('Please enter a valid email address');
+    return;
+  }
+  
+  if (pw.value.length < 6) {
+    showError('Password must be at least 6 characters');
+    return;
+  }
+  
+  if (pw.value !== confirm.value) {
+    showError('Passwords do not match');
+    return;
+  }
+  
   submitBtn.disabled = true;
   btnText.innerHTML = '<span class="spinner"></span>Creating…';
 
@@ -195,21 +316,42 @@ form.addEventListener('submit', async e => {
   };
   try {
     const res = await fetch('/api/signup', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Signup failed');
+    
+    if (!res.ok) {
+      throw new Error(data.error || 'Signup failed');
+    }
+    
+    showSuccess('Account created successfully! Redirecting...');
     localStorage.setItem('token', data.token);
-    location.href = 'dashboard.html';
+    localStorage.setItem('user', JSON.stringify(data.user));
+    
+    setTimeout(() => {
+      window.location.href = 'dashboard.html';
+    }, 1500);
   } catch (err) {
-    error.textContent = err.message;
-    error.classList.remove('d-none');
+    showError(err.message || 'Signup failed. Please try again.');
     submitBtn.disabled = false;
     btnText.textContent = 'Create account';
   }
 });
+
+if (localStorage.getItem('token')) {
+  fetch('/api/verify', {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+  }).then(res => {
+    if (res.ok) {
+      window.location.href = 'dashboard.html';
+    }
+  }).catch(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  });
+}
 </script>
 </body>
 </html>
